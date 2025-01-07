@@ -1,0 +1,311 @@
+---
+title: "Análise Completa DBC - Dados de Cana-de-açúcar"
+author: "Cleanderson Fidelis"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+# Criando o data.frame com os dados fornecidos
+dados_cn <- data.frame(
+  Tratamento = rep(c("T1", "T2", "T3", "T4", "T5"), each = 8),  # Tratamentos
+  Bloco = rep(1:8, times = 5),  # 8 blocos
+  Teores = c(11.5, 12.7, 12.6, 12.2, 10.4, 12.0, 12.2,  8.5,
+             7.7,  9.0,  9.1,  8.6,  8.8,  8.6,  8.4,  8.4,
+             9.8,  8.0,  7.4,  9.5,  8.3,  8.9, 10.5, 10.4,
+             10.7, 10.8, 10.2,  9.6,  9.8, 10.1, 11.1, 11.5,
+             12.0, 10.9, 10.3,  9.8,  9.4,  9.5,  9.7, 10.1)
+)
+
+# Visualizar os dados
+print(dados_cn)
+```
+
+## Dados de Cana-de-Açúcar
+
+A diagnose foliar é uma ferramenta essencial para a avaliação nutricional das plantas, sendo amplamente utilizada para monitorar os teores de nutrientes em cultivos agrícolas como a cana-de-açúcar. Neste estudo, foi realizado um experimento para avaliar o impacto de diferentes métodos de preparo de amostras foliares no teor de cobre (ppm) presente nas folhas da cultura de cana-de-açúcar. O objetivo principal foi identificar o tratamento mais eficiente na obtenção de amostras representativas, garantindo precisão nos resultados analíticos.
+
+Para tal, foram considerados cinco tratamentos distintos no preparo das folhas de cana-de-açúcar:
+
+- **T1**: Folhas sem sofrerem qualquer tipo de limpeza;
+- **T2**: Folhas submetidas à passagem de escova acoplada a aspirador de pé;
+- **T3**: Folhas lavadas em água corrente e enxaguadas em água destilada e desmineralizada;
+- **T4**: Folhas lavadas em solução diluída de detergente (ODD a 0,1%), seguidas por enxágue com água destilada, imersão em HCl 0,1 N e lavagem final com água desmineralizada;
+- **T5**: Folhas lavadas em solução diluída de detergente (ODD a 0,1%), enxaguadas em água destilada até completa remoção do detergente e lavadas com água desmineralizada.
+
+Os diferentes métodos de limpeza e preparo foram aplicados para avaliar como o processo influencia a remoção de impurezas e resíduos que poderiam interferir na análise química. A variável analisada foi o teor de cobre (ppm), um micronutriente essencial para o desenvolvimento das plantas, mas que pode apresentar contaminações externas devido ao manejo ou ao ambiente.
+
+Os resultados do experimento estão sintetizados na Tabela abaixo, onde os teores de cobre observados para cada tratamento foram organizados por blocos, representando as diferentes condições experimentais avaliadas.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Carregar pacotes necessários
+library(knitr)        # Para criar tabelas formatadas
+library(kableExtra)   # Para melhorar a apresentação das tabelas
+library(AgroR)        # Para construir o croqui (se necessário)
+library(ExpDes.pt)    # Para a análise de variâncias
+library(ggplot2)      # Para os gráficos
+
+# Dados do teor de cobre (ppm) das folhas de cana-de-açúcar
+dados <- data.frame(
+  Tratamento = c("T1", "T2", "T3", "T4", "T5"),
+  Bloco_1 = c(11.5, 7.7, 9.8, 10.7, 12.0),
+  Bloco_2 = c(12.7, 9.0, 8.0, 10.8, 10.9),
+  Bloco_3 = c(12.6, 9.1, 7.4, 10.2, 10.3),
+  Bloco_4 = c(12.2, 8.6, 9.5, 9.6,   9.8),
+  Bloco_5 = c(10.4, 8.8, 8.3, 9.8,   9.4),
+  Bloco_6 = c(12.0, 8.6, 8.9, 10.1,  9.5),
+  Bloco_7 = c(12.2, 8.4, 10.5, 11.1, 9.7),
+  Bloco_8 = c(8.5, 8.4,  10.4, 11.5,10.1)
+)
+
+# Adicionar totais e médias por tratamento
+dados$Total <- rowSums(dados[2:9])  # Soma dos valores por linha (Total por tratamento)
+dados$Media <- round(rowMeans(dados[2:9]), 2)  # Média por tratamento
+
+# Total e média geral
+total_geral <- round(sum(dados$Total),1)  # Soma total dos blocos
+media_geral <- round(mean(dados$Media), 1)  # Média geral de todos os tratamentos
+
+# Adicionar linha de total geral e média geral
+dados_geral <- rbind(
+  dados,
+  c("Total", c(51.7,51.4,49.6,49.7,46.7,49.1,51.9,48.9), 
+    total_geral, media_geral,10)
+)
+
+# Exibir a tabela formatada
+kable(dados_geral, align = "c", col.names = c("Tratamento", "Bloco 1", "Bloco 2", "Bloco 3",
+                                              "Bloco 4", "Bloco 5", "Bloco 6", "Bloco 7",
+                                              "Bloco 8", "Total", "Média")) %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+## Leitura dos dados no R
+
+```{r}
+# Criando o data.frame com os dados fornecidos
+dados_cn <- data.frame(
+  Tratamento = rep(c("T1", "T2", "T3", "T4", "T5"), each = 8),  # Tratamentos
+  Bloco = rep(1:8, times = 5),  # 8 blocos
+  Teores = c(11.5, 12.7, 12.6, 12.2, 10.4, 12.0, 12.2,  8.5,
+             7.7,  9.0,  9.1,  8.6,  8.8,  8.6,  8.4,  8.4,
+             9.8,  8.0,  7.4,  9.5,  8.3,  8.9, 10.5, 10.4,
+             10.7, 10.8, 10.2,  9.6,  9.8, 10.1, 11.1, 11.5,
+             12.0, 10.9, 10.3,  9.8,  9.4,  9.5,  9.7, 10.1)
+)
+
+# Visualizar os dados
+print(dados_cn)
+kableExtra::kable(dados_cn)
+```
+
+## Croqui experimental 
+
+O croqui experimental abaixo foi elaborado para representar a disposição dos tratamentos em um delineamento em blocos completos (DBC). Esse layout organiza os tratamentos em oito blocos, garantindo que cada tratamento seja aplicado uma vez em cada bloco. Essa estrutura é essencial para controlar a variabilidade experimental entre os blocos.
+
+- **Blocos:** O experimento foi conduzido em oito blocos (1 a 8), representados no eixo vertical (y). Cada bloco representa uma unidade experimental distinta, controlando fatores de variabilidade que podem influenciar os resultados.
+- **Tratamentos:** Cinco tratamentos foram aplicados (T1, T2, T3, T4, T5). Estes são representados pelas células coloridas dentro dos blocos, com cada cor identificando um tratamento específico.
+
+O croqui experimental é uma ferramenta visual fundamental para compreender a alocação dos tratamentos no experimento. Ele garante que:
+
+- Cada tratamento seja representado de forma equitativa em cada bloco, minimizando vieses e maximizando a precisão das comparações.
+- Possíveis fontes de variação entre blocos sejam controladas, isolando o efeito dos tratamentos.
+
+A aleatorização utilizada no croqui assegura que os tratamentos foram distribuídos de maneira imparcial, reduzindo o impacto de fatores externos. Isso permite que as diferenças observadas nos resultados sejam atribuídas, de forma mais confiável, aos tratamentos aplicados.
+
+Esse croqui foi gerado usando o pacote **AgroR**, que facilita a visualização e o planejamento de experimentos em delineamentos padronizados como o DBC.
+
+
+```{r}
+set.seed(1234)
+# Construção do croqui do experimento usando o pacote AgroR
+# O croqui mostra a disposição dos tratamentos nos blocos
+Trat <- paste("Trat", 1:5)
+sketch(Trat, r = 8, design = "dbc")  # 5 blocos
+```
+
+## Estatísticas Descritiva
+
+As estatísticas descritivas do experimento foram analisadas considerando os valores de teor de cobre (ppm) medidos para cada tratamento e bloco. A variável resposta apresenta valores mínimos de 7.4 ppm e máximos de 12.7 ppm, com uma média geral de 9.975 ppm. A mediana (9.8 ppm) e os quartis indicam uma distribuição relativamente simétrica.
+
+A análise das médias por tratamento mostra que T1 apresentou o maior teor médio de cobre (11.512 ppm), seguido por T4 (10.475 ppm) e T5 (10.213 ppm). Por outro lado, T2 apresentou a menor média (8.575 ppm), com T3 apresentando um valor intermediário (9.100 ppm). Em termos de variabilidade, o desvio padrão foi maior para T1 (1.418), enquanto T2 apresentou a menor variabilidade (0.437). Isso indica que T1 possui maior dispersão nos dados, enquanto T2 apresenta maior consistência nos resultados.
+
+A análise por bloco revelou que as médias dos teores de cobre variam entre 9.34 ppm (Bloco 5) e 10.38 ppm (Bloco 7), indicando boa uniformidade nas condições experimentais. Em termos de desvio padrão, o Bloco 2 apresentou a maior variabilidade (1.826), enquanto o Bloco 5 foi o mais consistente (0.823). De modo geral, a variabilidade entre os blocos foi pequena, sugerindo que as diferenças nos teores de cobre são mais influenciadas pelos tratamentos do que pelas condições dos blocos.
+
+Os resultados indicam que os tratamentos influenciam significativamente os teores de cobre medidos. Os tratamentos T1 e T4 apresentaram os maiores valores médios, enquanto T2 teve os menores. A uniformidade entre os blocos sugere que as condições experimentais foram bem controladas, permitindo que as diferenças observadas sejam atribuídas principalmente aos métodos de preparo das amostras. 
+
+```{r}
+# Estatísticas descritivas: Resumo geral e por tratamento
+summary(dados_cn)
+aggregate(Teores ~ Tratamento, data = dados_cn, FUN = function(x) c(mean = mean(x), sd = sd(x)))
+aggregate(Teores ~ Bloco, data = dados_cn, FUN = function(x) c(mean = mean(x), sd = sd(x)))
+```
+
+## Análises gráfica
+
+### Perfil
+
+O gráfico de perfil apresentado ilustra a variação dos teores de cobre (ppm) para os cinco tratamentos (T1, T2, T3, T4 e T5) ao longo dos oito blocos experimentais. Ele permite observar tanto a consistência dos tratamentos quanto as possíveis interações entre tratamentos e blocos.
+
+
+```{r}
+# Todos os perfis juntos
+
+# Criar o gráfico para os dados de gordura absorvida
+ggplot(dados_cn, aes(x = Bloco, y = Teores, group = Tratamento)) +
+  geom_line(aes(linetype = Tratamento), 
+            size = 0.5) +  # Linhas conectando os pontos por tipo de gordura
+  geom_point(aes(color = Tratamento), 
+             size = 1.5) +    # Pontos para cada valor de gordura absorvida
+  scale_x_continuous(breaks = 1:8, 
+                     labels = paste("B", 1:8)) +  # Eixo X representando os Blocos
+  stat_summary(fun = mean, geom = "line", lwd = 1.0, 
+               aes(group = Tratamento,
+                   color = Tratamento)) +  # Média por tipo
+  xlab("Blocos") +
+  ylab("Teores") +
+  theme_bw() +  # Tema com fundo branco
+  theme(axis.text.x = element_text(size = 13)) +  # Tamanho do texto no eixo X
+  theme(axis.text.y = element_text(size = 13)) 
+```
+
+O gráfico abaixo apresenta os perfis dos tratamentos (T1 a T5) em relação aos teores de cobre (ppm) ao longo dos oito blocos experimentais. A separação por blocos permite uma análise detalhada de cada tratamento, destacando a variação interna em cada bloco.
+
+```{r}
+# perfis separados
+
+# Criar o gráfico para os dados de cana-de-açúcar
+ggplot(dados_cn, aes(x = Bloco, y = Teores, group = Tratamento)) +
+  geom_line(aes(linetype = Tratamento), 
+            size = 0.5) +  # Linhas conectando os pontos por tipo de gordura
+  geom_point(aes(color = Tratamento), 
+             size = 1.5) +    # Pontos para cada valor de teor de cobre
+  scale_x_continuous(breaks = 1:8, 
+                     labels = paste("B", 1:8)) +  # Eixo X representando os lotes
+  stat_summary(fun = mean, geom = "line", lwd = 1.0, 
+               aes(group = Tratamento,
+                   color = Tratamento)) +  # Média por tipo
+  xlab("Blocos") +
+  ylab("Teores") +
+  theme_bw() +  # Tema com fundo branco
+  theme(axis.text.x = element_text(size = 8)) +  # Tamanho do texto no eixo X
+  theme(axis.text.y = element_text(size = 10)) +  # Tamanho do texto no eixo Y
+  facet_wrap(~Tratamento)  # Dividir o gráfico por tratamento
+```
+
+## Box-plots
+
+Os box-plots apresentados abaixo mostram a distribuição dos teores de cobre (ppm) para os diferentes tratamentos (T1 a T5). Esses gráficos permitem uma visualização clara das diferenças entre os tratamentos, incluindo a dispersão dos dados, a mediana e a presença de possíveis outliers.
+
+Os box-plots indicam diferenças claras entre os tratamentos no que diz respeito aos teores de cobre:
+
+- **T1** apresenta os maiores teores de cobre, enquanto **T2** apresenta os menores.
+- A dispersão dos dados varia significativamente entre os tratamentos, sendo **T2** o mais consistente e **T3** o que apresenta maior variabilidade relativa.
+- A presença de outliers em alguns tratamentos, como T1, T3 e T5, pode refletir condições experimentais específicas que influenciaram os resultados.
+
+Essas observações serão aprofundadas com análises estatísticas, como ANOVA e testes de comparação múltipla, para determinar se as diferenças observadas são estatisticamente significativas.
+
+```{r}
+# Gráfico de boxplot para visualizar a distribuição dos teores de cobre por tratamento
+ggplot(dados_cn, aes(x = Tratamento, y = Teores, 
+                             fill = Tratamento)) +
+  geom_boxplot() +
+  labs(title = "Distribuição de Teores de Cobre por Tratamento",
+       x = "Tratamentos",
+       y = "Teores de Cobre (ppm)") +
+  theme_minimal()
+```
+
+
+## Anova
+
+A análise de variância (ANOVA) foi conduzida para avaliar o impacto dos tratamentos no teor de cobre (ppm) das folhas de cana-de-açúcar. Os resultados indicam que houve diferenças significativas entre os tratamentos (p-valor = 0.00002), com um valor F calculado de 10.5920. Isso demonstra que os métodos de preparo utilizados nos tratamentos influenciam significativamente o teor de cobre observado.
+
+Por outro lado, o efeito dos blocos foi considerado não significativo (p-valor = 0.74841), com um valor F de 0.6028. Isso indica que as variações entre os blocos não tiveram impacto relevante nos resultados, sugerindo que as condições experimentais foram bem controladas.
+
+O coeficiente de variação (CV) foi de 10.12%, indicando boa precisão experimental. Um CV baixo sugere que a variabilidade residual é pequena em relação às médias dos tratamentos, reforçando a confiabilidade dos dados.
+
+Os testes de normalidade e homogeneidade de variâncias confirmaram que as suposições da ANOVA foram atendidas:
+
+- O teste de Shapiro-Wilk (p-valor = 0.0761) indica que os resíduos podem ser considerados normais ao nível de 5% de significância.
+- O teste de homogeneidade de variâncias (Oneill-Mathews, p-valor = 0.3298) sugere que as variâncias são homogêneas entre os tratamentos.
+
+Esses resultados validam a aplicação da ANOVA, permitindo a interpretação confiável dos resultados.
+
+O teste de comparação múltipla de Tukey identificou diferenças significativas entre os tratamentos. Os tratamentos foram agrupados em diferentes níveis de significância, como segue:
+
+- **T1** apresentou a maior média (11.5125 ppm) e foi agrupado no nível mais alto ("a").
+- **T4** (10.475 ppm) e **T5** (10.2125 ppm) foram classificados no mesmo grupo intermediário ("ab"), indicando que não diferem significativamente entre si.
+- **T3** (9.1 ppm) foi posicionado em um grupo inferior ("bc"), indicando diferença em relação a T1 e ao grupo intermediário.
+- **T2** apresentou a menor média (8.575 ppm) e foi classificado no grupo mais baixo ("c").
+
+Os resultados da ANOVA mostram que os tratamentos diferem significativamente no impacto sobre o teor de cobre nas folhas de cana-de-açúcar. O tratamento T1 foi o mais eficaz, apresentando os maiores valores médios, enquanto T2 obteve os menores. A ausência de efeitos significativos dos blocos sugere que as variações entre blocos foram bem controladas, reforçando que as diferenças observadas são atribuídas principalmente aos tratamentos. Esses achados fornecem evidências importantes para a escolha do método mais eficiente de preparo de amostras na diagnose foliar.
+
+
+```{r}
+# Realizar a ANOVA com o pacote ExpDes.pt
+# Inclui o efeito dos blocos no modelo
+dbc(
+  trat = dados_cn$Tratamento, 
+  bloco = dados_cn$Bloco, 
+  resp = dados_cn$Teores, 
+  quali = TRUE,  # Tratamento é qualitativo
+  mcomp = "tukey",  # Teste de comparação múltipla: Tukey
+  sigT = 0.05,      # Nível de significância para Tukey
+  sigF = 0.05       # Nível de significância para ANOVA
+)
+```
+
+## Verificação dos pressupostos
+
+A validação dos pressupostos da ANOVA foi realizada com base nos gráficos de resíduos apresentados acima. A análise desses gráficos permite avaliar a adequação dos pressupostos de homogeneidade de variâncias e normalidade dos resíduos, fundamentais para a validade do modelo.
+
+O gráfico de resíduos em função dos valores ajustados indica a distribuição dos resíduos ao longo dos valores preditos. A ausência de padrões claros ou sistemáticos sugere que o pressuposto de homogeneidade de variâncias foi atendido. Embora haja uma leve curvatura na linha vermelha (smoothing line), indicando uma possível ligeira heterocedasticidade, a variação parece ser pequena e não compromete a análise. Alguns pontos atípicos (como os identificados com os números 19 e 24) foram destacados, mas não parecem ter impacto significativo na análise geral.
+
+O gráfico Q-Q dos resíduos apresenta a aderência dos resíduos à distribuição normal teórica. Os pontos seguem de forma geral a linha diagonal, indicando que os resíduos podem ser considerados normais. Pequenas discrepâncias são observadas nos extremos (outliers identificados como 8 e 24), mas isso é comum em dados experimentais e não afeta significativamente os resultados, como corroborado pelo teste de normalidade de Shapiro-Wilk.
+
+Com base nos gráficos apresentados, os pressupostos da ANOVA podem ser considerados satisfeitos. A distribuição dos resíduos é suficientemente homogênea e normal para validar o uso da ANOVA no experimento. Embora alguns pontos discrepantes estejam presentes, eles não comprometem a análise geral. Essas observações reforçam a robustez dos resultados obtidos e permitem interpretar as conclusões com confiança.
+
+```{r,echo=FALSE}
+# Verificar os pressupostos do modelo ANOVA
+modelo <- aov(Teores ~ as.factor(Tratamento) + as.factor(Bloco), 
+              data = dados_cn)  # Ajustar modelo ANOVA
+
+# Plotar gráficos de resíduos
+par(mfrow = c(1, 2))  # Configurar para dois gráficos lado a lado
+plot(modelo, which = 1)  # Resíduos vs Ajustados
+plot(modelo, which = 2)  # QQ plot dos resíduos
+par(mfrow = c(1, 1)) 
+```
+
+## Utilizando o teste Scott-Knot
+
+O Teste de Scott-Knott foi aplicado para identificar grupos homogêneos entre os tratamentos em relação ao teor de cobre (ppm). Este teste agrupa tratamentos com médias estatisticamente semelhantes, facilitando a interpretação dos resultados experimentais. A tabela abaixo apresenta os grupos formados e as respectivas médias.
+
+Os resultados indicam a formação de três grupos distintos:
+
+- **Grupo 'a'**: Inclui o tratamento **T1**, com a maior média (11.512 ppm). Este tratamento apresenta o melhor desempenho em relação ao teor de cobre.
+- **Grupo 'b'**: Compreende os tratamentos **T4** (10.475 ppm) e **T5** (10.213 ppm). Esses tratamentos possuem médias intermediárias e não diferem estatisticamente entre si, mas diferem de T1 e dos tratamentos do grupo 'c'.
+- **Grupo 'c'**: Abrange os tratamentos **T3** (9.100 ppm) e **T2** (8.575 ppm), que apresentaram as menores médias, estatisticamente semelhantes entre si.
+
+Os resultados mostram que o tratamento **T1** é significativamente superior aos demais em termos de teor de cobre, destacando-se como o mais eficiente. Os tratamentos **T4** e **T5** formam um grupo intermediário, enquanto **T3** e **T2** apresentam os menores valores, indicando menor eficiência em relação aos outros métodos avaliados.
+
+O teste de Scott-Knott permite identificar diferenças relevantes entre os tratamentos, auxiliando na seleção do método mais adequado para maximizar o teor de cobre nas folhas de cana-de-açúcar. Os resultados reforçam a importância de métodos de preparo mais completos, como os representados por T1, T4 e T5.
+
+```{r}
+# Teste post-hoc: Scott-Knott (usando ExpDes.pt)
+dbc(
+  trat = dados_cn$Tratamento, 
+  bloco = dados_cn$Bloco, 
+  resp = dados_cn$Teores, 
+  quali = TRUE, 
+  mcomp = "sk",  # Teste Scott-Knott
+  sigT = 0.05, 
+  sigF = 0.05
+)
+```

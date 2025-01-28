@@ -1,0 +1,95 @@
+
+
+# Considerando os dados de um experimento inteiramente casualizado, com **4 repetições** no esquema fatorial, para testar os efeitos de **3 Recipientes** (\(R_1\), \(R_2\) e \(R_3\)) e **2 Espécies de eucaliptos** (\(E_1\) e \(E_2\)), na produção de mudas. 
+# 
+# Quanto ao desenvolvimento das mudas, os recipientes e as espécies testados foram:
+#   
+#   - \(R_1\): saco plástico pequeno;
+# - \(R_2\): saco plástico grande;
+# - \(R_3\): laminado;
+# - \(E_1\): *Eucalyptus citriodora*;
+# - \(E_2\): *Eucalyptus grandis*.
+
+# ```{r}
+# Caso 2: Experimento com interação
+# Conjunto de Dados
+# Criando os dados do experimento
+dados_eucalipto <- data.frame(
+  Tratamentos = c("R1E1", "R1E2", "R2E1", "R2E2", "R3E1", "R3E2"),
+  Recipiente = rep(c("R1", "R2", "R3"), each = 2),
+  Especie = rep(c("E1", "E2"), times = 3),
+  Altura = c(26.2, 24.8, 25.7, 19.6, 22.8, 19.8,
+             26.0, 24.6, 26.3, 21.1, 19.4, 21.4,
+             25.0, 26.7, 25.1, 19.0, 18.8, 22.8,
+             25.4, 25.2, 26.4, 18.6, 19.2, 21.3)
+)
+
+# Visualizando os dados
+print(dados_eucalipto)
+
+## Gráfico para interação
+
+# Calculando a altura média por combinação de Recipiente e Espécie
+library(dplyr)
+
+dados_media <- dados_eucalipto %>%
+  group_by(Recipiente, Especie) %>%
+  summarise(Media_Altura = mean(Altura, na.rm = TRUE))
+
+# Visualizando os dados com médias
+print(dados_media)
+
+# Gráfico de Interação com Alturas Médias
+library(ggplot2)
+ggplot(dados_media, aes(x = Especie, y = Media_Altura, 
+                        color = Recipiente, 
+                        group = Recipiente)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +
+  labs(
+    title = "Gráfico de Interação: Recipientes x Espécies",
+    x = "Espécie",
+    y = "Altura Média (cm)"
+  ) +
+  theme_minimal()
+
+#As linhas não paralelas (e, neste caso, cruzadas) indicam a presença de interação entre os fatores.
+
+## Croqui experimental
+
+# Croqui Experimental
+sketch(trat=c("E1","E2"),
+       trat1=c("R1","R2","R3"),
+       design = "fat2dic",
+       r=4)
+
+# Análise de variância utilizando o pacote ExpDes.pt
+
+attach(dados_eucalipto)
+
+fat2.dic(
+  Especie,
+  Recipiente,
+  Altura,
+  quali = c(TRUE, TRUE),
+  mcomp = "tukey",
+  fac.names = c("Especie", "Recipiente"),
+  sigT = 0.05,
+  sigF = 0.05
+)
+
+detach(dados_eucalipto)
+
+# Análise de Variância utilizando o pacote AgroR
+
+library(AgroR)
+with(dados_eucalipto,
+     FAT2DIC(f1 = Especie, 
+             f2 = Recipiente, 
+             Altura, 
+             ylab="Produção", 
+             xlab = "Trat",
+             names.fat = c("Densidade", "Peneira"),
+             legend = "Densidade",
+             fill = "trat"))
+
